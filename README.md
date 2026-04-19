@@ -1,8 +1,16 @@
 # 🛡️ BruteGuard SOC Platform
 
 **Enterprise-grade brute force detection system** for Windows Security Event Logs, featuring real-time monitoring, machine learning anomaly detection, threat intelligence enrichment, and a professional SOC dashboard.
-
 ---
+
+
+<img width="1911" height="895" alt="Screenshot 2026-04-19 085700" src="https://github.com/user-attachments/assets/e7845570-3164-47a1-b2c8-6b2face2fd4c" />
+<img width="1914" height="926" alt="Screenshot 2026-04-19 130539" src="https://github.com/user-attachments/assets/fc954b55-7da5-4d6c-bba4-3bd20d3d6ce4" />
+<img width="1919" height="905" alt="image" src="https://github.com/user-attachments/assets/e7ed0aee-1334-49c7-b5e8-80d327006e2d" />
+
+
+
+
 
 ## 📐 Architecture
 
