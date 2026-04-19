@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BruteGuard SOC — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-void:    #060810;
+  --bg-base:    #0a0e1a;
+  --bg-card:    #0f1424;
+  --border:     rgba(255,255,255,0.08);
+  --accent-red: #ff3b3b;
+  --accent-cyan:#00e5ff;
+  --text-p:     #e8ecf5;
+  --text-s:     #8892aa;
+  --text-m:     #4a5568;
+  --font-d:     'Syne', sans-serif;
+  --font-m:     'JetBrains Mono', monospace;
+}
+
+body {
+  min-height: 100vh; background: var(--bg-void);
+  display: grid; place-items: center;
+  font-family: var(--font-m);
+  overflow: hidden; position: relative;
+}
+
+/* ── Animated background grid ─────────────────────────────────────── */
+.bg-grid {
+  position: fixed; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridDrift 20s linear infinite;
+}
+@keyframes gridDrift { 0%{background-position:0 0} 100%{background-position:40px 40px} }
+
+/* ── Scanline overlay ──────────────────────────────────────────────── */
+.scanlines {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+}
+
+/* ── Glow orbs ─────────────────────────────────────────────────────── */
+.orb {
+  position: fixed; border-radius: 50%; filter: blur(80px);
+  pointer-events: none; animation: orbFloat 8s ease-in-out infinite;
+}
+.orb-1 { width:400px; height:400px; background:rgba(255,59,59,0.08); top:-100px; left:-100px; }
+.orb-2 { width:300px; height:300px; background:rgba(0,229,255,0.06); bottom:-80px; right:-80px; animation-delay:-4s; }
+@keyframes orbFloat { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-20px)} }
+
+/* ── Card ──────────────────────────────────────────────────────────── */
+.card {
+  position: relative; z-index: 10;
+  width: 420px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 120px rgba(255,59,59,0.05);
+}
+
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  border-radius: 16px 16px 0 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.header { text-align: center; margin-bottom: 36px; }
+.logo-ring {
+  width: 60px; height: 60px; margin: 0 auto 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,229,255,0.3);
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, rgba(255,59,59,0.15), rgba(191,64,255,0.15));
+  box-shadow: 0 0 30px rgba(0,229,255,0.15);
+  font-size: 26px;
+  position: relative;
+}
+.logo-ring::after {
+  content: '';
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,229,255,0.1);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+@keyframes ringPulse { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.08);opacity:0.2} }
+
+.title {
+  font-family: var(--font-d); font-weight: 800; font-size: 1.4rem;
+  color: var(--text-p); letter-spacing: 0.02em; margin-bottom: 4px;
+}
+.subtitle { font-size: 0.68rem; color: var(--text-s); letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* ── Form ────────────────────────────────────────────────────────────── */
+.field { margin-bottom: 18px; }
+.field-label {
+  display: block; font-size: 0.65rem; font-weight: 600;
+  color: var(--text-s); letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.field-input {
+  width: 100%; padding: 11px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-p); font-family: var(--font-m); font-size: 0.82rem;
+  transition: 200ms ease; outline: none;
+}
+.field-input:focus {
+  border-color: rgba(0,229,255,0.4);
+  background: rgba(0,229,255,0.04);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
+}
+.field-input::placeholder { color: var(--text-m); }
+
+/* ── Error ───────────────────────────────────────────────────────────── */
+.error-msg {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: 8px;
+  background: rgba(255,59,59,0.1);
+  border: 1px solid rgba(255,59,59,0.25);
+  color: var(--accent-red); font-size: 0.72rem;
+  margin-bottom: 18px;
+}
+
+/* ── Submit button ───────────────────────────────────────────────────── */
+.submit-btn {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, #ff3b3b, #bf40ff);
+  border: none; border-radius: 8px;
+  color: #fff; font-family: var(--font-d); font-weight: 700;
+  font-size: 0.88rem; letter-spacing: 0.04em;
+  cursor: pointer; transition: 200ms ease;
+  position: relative; overflow: hidden;
+}
+.submit-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0; transition: 200ms;
+}
+.submit-btn:hover::after { opacity: 1; }
+.submit-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(255,59,59,0.35); }
+.submit-btn:active { transform: translateY(0); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ── Footer note ─────────────────────────────────────────────────────── */
+.card-footer {
+  margin-top: 24px; padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center; font-size: 0.62rem; color: var(--text-m);
+  line-height: 1.8;
+}
+
+/* ── Terminal blink ──────────────────────────────────────────────────── */
+.blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="scanlines"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="card">
+  <div class="header">
+    <div class="logo-ring">🛡</div>
+    <div class="title">BruteGuard</div>
+    <div class="subtitle">Security Operations Center<span class="blink">_</span></div>
+  </div>
+
+  {% if error %}
+  <div class="error-msg">
+    <span>⚠</span> {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/login" id="login-form">
+    <div class="field">
+      <label class="field-label" for="username">Operator ID</label>
+      <input class="field-input" type="text" id="username" name="username"
+             placeholder="analyst" autocomplete="username" autofocus required>
+    </div>
+    <div class="field">
+      <label class="field-label" for="password">Access Code</label>
+      <input class="field-input" type="password" id="password" name="password"
+             placeholder="••••••••••••" autocomplete="current-password" required>
+    </div>
+    <button class="submit-btn" type="submit" id="submit-btn">
+      AUTHENTICATE →
+    </button>
+  </form>
+
+  <div class="card-footer">
+    BruteGuard SOC Platform v2.1 &nbsp;·&nbsp; Restricted Access<br>
+    All authentication attempts are logged and audited.
+  </div>
+</div>
+
+<script>
+document.getElementById("login-form").addEventListener("submit", function(e) {
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  btn.textContent = "AUTHENTICATING…";
+});
+</script>
+
+</body>
+</html>

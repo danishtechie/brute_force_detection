@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BruteGuard SOC Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-void:#060810;--bg-base:#0a0e1a;--bg-surface:#0f1424;
+  --bg-elevated:#141929;--bg-card:#19202f;--bg-card-hover:#1e2639;
+  --border-subtle:rgba(255,255,255,0.06);--border-strong:rgba(255,255,255,0.12);
+  --accent-red:#ff3b3b;--accent-orange:#ff8c00;--accent-yellow:#ffd60a;
+  --accent-green:#00e676;--accent-blue:#2979ff;--accent-cyan:#00e5ff;--accent-purple:#bf40ff;
+  --text-primary:#e8ecf5;--text-secondary:#8892aa;--text-muted:#4a5568;
+  --font-display:'Syne',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:16px;
+  --transition:200ms cubic-bezier(0.4,0,0.2,1);
+}
+html,body{height:100%;background:var(--bg-void);color:var(--text-primary);font-family:var(--font-mono)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg-base)}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:2px}
+.shell{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:220px;min-width:220px;background:var(--bg-base);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column}
+.sidebar-brand{padding:20px 18px 16px;border-bottom:1px solid var(--border-subtle)}
+.brand-logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:1.1rem;letter-spacing:.02em;color:var(--text-primary)}
+.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,#ff3b3b,#bf40ff);border-radius:var(--radius-sm);display:grid;place-items:center;font-size:16px}
+.brand-sub{margin-top:4px;font-size:.65rem;font-weight:500;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase}
+.nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-section{padding:8px 18px 4px;font-size:.6rem;font-weight:600;color:var(--text-muted);letter-spacing:.12em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;font-size:.78rem;font-weight:500;color:var(--text-secondary);cursor:pointer;border-left:2px solid transparent;text-decoration:none;transition:var(--transition);user-select:none}
+.nav-item:hover{color:var(--text-primary);background:rgba(255,255,255,0.04)}
+.nav-item.active{color:var(--accent-cyan);background:rgba(0,229,255,0.08);border-left-color:var(--accent-cyan)}
+.nav-item .icon{font-size:15px;width:18px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border-subtle);font-size:.7rem;color:var(--text-muted)}
+.dev-credit{margin-top:6px;font-size:.58rem;color:var(--text-muted);border-top:1px solid var(--border-subtle);padding-top:8px}
+.dev-credit span{color:var(--accent-cyan);font-weight:600}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px var(--accent-green);margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:56px;min-height:56px;background:var(--bg-base);border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.topbar-title{font-family:var(--font-display);font-weight:700;font-size:1rem}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.threat-level{display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:var(--radius-sm);font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.threat-level.critical{background:rgba(255,59,59,.15);color:var(--accent-red);border:1px solid rgba(255,59,59,.3)}
+.threat-level.high{background:rgba(255,140,0,.15);color:var(--accent-orange);border:1px solid rgba(255,140,0,.3)}
+.threat-level.medium{background:rgba(255,214,10,.12);color:var(--accent-yellow);border:1px solid rgba(255,214,10,.25)}
+.threat-level.normal{background:rgba(0,230,118,.1);color:var(--accent-green);border:1px solid rgba(0,230,118,.25)}
+.time-display{font-family:var(--font-mono);font-size:.75rem;color:var(--text-secondary)}
+.topbar-btn{padding:6px 14px;border-radius:var(--radius-sm);background:rgba(255,255,255,.06);border:1px solid var(--border-subtle);color:var(--text-secondary);font-family:var(--font-mono);font-size:.72rem;cursor:pointer;transition:var(--transition);text-decoration:none}
+.topbar-btn:hover{background:rgba(255,255,255,.1);color:var(--text-primary)}
+.content{flex:1;overflow-y:auto;padding:20px 24px}
+
+/* Sections */
+.section{display:none}
+.section.active{display:block}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:14px 16px;position:relative;overflow:hidden;transition:var(--transition)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-accent,var(--accent-cyan))}
+.kpi-card:hover{border-color:var(--border-strong);background:var(--bg-card-hover)}
+.kpi-label{font-size:.62rem;font-weight:600;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.kpi-value{font-family:var(--font-display);font-size:1.6rem;font-weight:800;color:var(--text-primary);line-height:1}
+.kpi-sub{font-size:.62rem;color:var(--text-muted);margin-top:5px}
+.kpi-card.danger{--kpi-accent:var(--accent-red)}.kpi-card.warning{--kpi-accent:var(--accent-orange)}
+.kpi-card.caution{--kpi-accent:var(--accent-yellow)}.kpi-card.ok{--kpi-accent:var(--accent-green)}
+.kpi-card.info{--kpi-accent:var(--accent-blue)}.kpi-card.cyber{--kpi-accent:var(--accent-cyan)}.kpi-card.blocked{--kpi-accent:var(--accent-purple)}
+
+/* Grids */
+.dash-grid{display:grid;grid-template-columns:1fr 380px;gap:16px;margin-bottom:16px}
+.dash-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.dash-grid-full{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px}
+@media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.dash-grid,.dash-grid-3{grid-template-columns:1fr}}
+
+/* Panel */
+.panel{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-subtle)}
+.panel-title{font-family:var(--font-display);font-weight:700;font-size:.85rem;color:var(--text-primary)}
+.panel-meta{font-size:.65rem;color:var(--text-muted)}
+.panel-body{flex:1;padding:16px;overflow:hidden}
+.panel-body.no-pad{padding:0}.panel-body.scroll{overflow-y:auto}
+
+/* Charts */
+.chart-wrap{position:relative}.chart-wrap canvas{max-width:100%}
+
+/* Scanner */
+.scanner-wrap{position:relative;overflow:hidden}
+.scanner-line{position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,var(--accent-cyan),transparent);animation:scan 4s linear infinite;pointer-events:none}
+@keyframes scan{from{left:0}to{left:100%}}
+
+/* Alerts */
+.alert-list{display:flex;flex-direction:column}
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border-subtle);transition:var(--transition);cursor:pointer}
+.alert-item:last-child{border-bottom:none}
+.alert-item:hover{background:rgba(255,255,255,.03)}
+.alert-item.new-alert{animation:alertFlash 1.5s ease-out}
+@keyframes alertFlash{0%{background:rgba(255,59,59,.15)}100%{background:transparent}}
+.sev-badge{padding:2px 7px;border-radius:4px;font-size:.58rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;margin-top:2px}
+.sev-badge.critical{background:rgba(255,59,59,.2);color:var(--accent-red)}
+.sev-badge.high{background:rgba(255,140,0,.18);color:var(--accent-orange)}
+.sev-badge.medium{background:rgba(255,214,10,.15);color:var(--accent-yellow)}
+.sev-badge.low{background:rgba(0,230,118,.12);color:var(--accent-green)}
+.alert-content{flex:1;min-width:0}
+.alert-headline{font-size:.73rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert-meta{font-size:.62rem;color:var(--text-muted);margin-top:3px}
+.alert-time{font-size:.62rem;color:var(--text-muted);flex-shrink:0;white-space:nowrap}
+.ack-btn{padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.06);border:1px solid var(--border-subtle);color:var(--text-muted);font-size:.6rem;cursor:pointer;transition:var(--transition);white-space:nowrap;font-family:var(--font-mono)}
+.ack-btn:hover{color:var(--accent-green);border-color:var(--accent-green)}
+
+/* IP list */
+.ip-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid var(--border-subtle);font-size:.72rem}
+.ip-row:last-child{border-bottom:none}
+.ip-row:hover{background:rgba(255,255,255,.03)}
+.ip-addr{font-family:var(--font-mono);color:var(--accent-cyan);font-size:.7rem}
+.ip-country{font-size:.6rem;color:var(--text-muted)}
+.ip-count{font-weight:700;color:var(--accent-red);font-size:.78rem;text-align:right}
+.abuse-score{padding:1px 6px;border-radius:3px;font-size:.58rem;font-weight:700}
+.abuse-high{background:rgba(255,59,59,.2);color:var(--accent-red)}
+.abuse-med{background:rgba(255,140,0,.2);color:var(--accent-orange)}
+.abuse-low{background:rgba(0,230,118,.12);color:var(--accent-green)}
+.abuse-na{background:rgba(255,255,255,.06);color:var(--text-muted)}
+
+/* Heatmap */
+#heatmap-grid{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;padding:0 18px 14px}
+.heat-cell{aspect-ratio:1;border-radius:2px;transition:var(--transition)}
+.heat-hours{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;padding:8px 18px 0}
+.heat-hour-label{font-size:.48rem;color:var(--text-muted);text-align:center}
+
+/* Page header */
+.page-header{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle)}
+.page-header h2{font-family:var(--font-display);font-weight:800;font-size:1.3rem;color:var(--text-primary);margin-bottom:4px}
+.page-header p{font-size:.7rem;color:var(--text-muted)}
+
+/* Buttons */
+.btn{padding:7px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;transition:var(--transition);border:none;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent-blue);color:#fff}.btn-primary:hover{background:#1565c0}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border-subtle)}.btn-ghost:hover{color:var(--text-primary);border-color:var(--border-strong)}
+.btn-danger{background:rgba(255,59,59,.15);color:var(--accent-red);border:1px solid rgba(255,59,59,.3)}.btn-danger:hover{background:rgba(255,59,59,.25)}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-select{background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border-subtle);padding:6px 10px;border-radius:var(--radius-sm);font-size:.7rem;font-family:var(--font-mono);cursor:pointer}
+.filter-select:focus{outline:none;border-color:var(--accent-cyan)}
+
+/* Data table */
+.data-table{width:100%;border-collapse:collapse;font-size:.72rem}
+.data-table th{padding:9px 16px;text-align:left;font-size:.6rem;font-weight:600;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border-subtle);background:var(--bg-elevated)}
+.data-table td{padding:10px 16px;border-bottom:1px solid var(--border-subtle);color:var(--text-secondary)}
+.data-table tr:hover td{background:rgba(255,255,255,.02);color:var(--text-primary)}
+.data-table tr:last-child td{border-bottom:none}
+
+/* Stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--bg-elevated);border-radius:var(--radius-md);padding:14px 16px;border:1px solid var(--border-subtle)}
+.stat-card-label{font-size:.6rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.stat-card-value{font-family:var(--font-display);font-size:1.4rem;font-weight:800;line-height:1}
+
+/* Toast */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 16px;border-radius:var(--radius-md);background:var(--bg-card);border:1px solid var(--border-strong);font-size:.72rem;max-width:320px;animation:toastIn .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.toast.critical{border-color:var(--accent-red)}.toast.high{border-color:var(--accent-orange)}.toast.info{border-color:var(--accent-cyan)}
+@keyframes toastIn{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+
+/* Empty state */
+.empty-state{padding:24px;text-align:center;color:var(--text-muted);font-size:.72rem;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon">🛡</div>
+        <div>
+          <div>BruteGuard</div>
+          <div class="brand-sub">SOC Platform v2.1</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Monitoring</div>
+      <div class="nav-item active" data-section="overview"><span class="icon">⬡</span> Overview</div>
+      <div class="nav-item" data-section="alerts"><span class="icon">⚡</span> Live Alerts</div>
+      <div class="nav-item" data-section="threatmap"><span class="icon">🌐</span> Threat Map</div>
+      <div class="nav-section" style="margin-top:8px">Analysis</div>
+      <div class="nav-item" data-section="ips"><span class="icon">◎</span> Attack IPs</div>
+      <div class="nav-item" data-section="patterns"><span class="icon">◈</span> Patterns</div>
+      <div class="nav-item" data-section="timeline"><span class="icon">⋯</span> Timeline</div>
+      <div class="nav-section" style="margin-top:8px">Response</div>
+      <div class="nav-item" data-section="blocked"><span class="icon">⊗</span> Blocked IPs</div>
+      <div class="nav-item" data-section="reports"><span class="icon">↯</span> Reports</div>
+      <div class="nav-section" style="margin-top:8px">System</div>
+      <div class="nav-item" data-section="ml"><span class="icon">⊕</span> ML Detector</div>
+      <a class="nav-item" href="/logout"><span class="icon">↩</span> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div><span class="status-dot"></span>Engine running</div>
+      <div style="margin-top:3px;font-size:.6rem">Last sync: <span id="last-sync">—</span></div>
+      <div class="dev-credit">Developed by <span>Dnish Maqbool</span><br>Security Engineer · SOC Analyst</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title" id="topbar-title">Security Operations Center</div>
+      <div class="topbar-right">
+        <div id="threat-level-badge" class="threat-level normal">⬤ THREAT LEVEL: NORMAL</div>
+        <div class="time-display" id="clock">—</div>
+        <button class="topbar-btn" onclick="exportAlerts()">⬇ Export CSV</button>
+        <button class="topbar-btn" onclick="generateReport()">📄 PDF Report</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ═══════════════ SECTION: OVERVIEW ═══════════════ -->
+      <div class="section active" id="sec-overview">
+        <div class="kpi-grid">
+          <div class="kpi-card cyber"><div class="kpi-label">Total Events (24h)</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">login attempts monitored</div></div>
+          <div class="kpi-card danger"><div class="kpi-label">Failed Logins</div><div class="kpi-value" id="kpi-failures" style="color:var(--accent-red)">—</div><div class="kpi-sub">authentication failures</div></div>
+          <div class="kpi-card ok"><div class="kpi-label">Successful Logins</div><div class="kpi-value" id="kpi-successes" style="color:var(--accent-green)">—</div><div class="kpi-sub">authenticated sessions</div></div>
+          <div class="kpi-card warning"><div class="kpi-label">Attack IPs</div><div class="kpi-value" id="kpi-ips" style="color:var(--accent-orange)">—</div><div class="kpi-sub">unique source addresses</div></div>
+          <div class="kpi-card caution"><div class="kpi-label">Open Alerts</div><div class="kpi-value" id="kpi-alerts" style="color:var(--accent-yellow)">—</div><div class="kpi-sub">pending review</div></div>
+          <div class="kpi-card blocked"><div class="kpi-label">Blocked IPs</div><div class="kpi-value" id="kpi-blocked" style="color:var(--accent-purple)">—</div><div class="kpi-sub">active firewall rules</div></div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="panel scanner-wrap">
+            <div class="scanner-line"></div>
+            <div class="panel-header">
+              <span class="panel-title">Login Activity Timeline</span>
+              <div style="display:flex;gap:12px;align-items:center">
+                <span style="font-size:.62rem;color:var(--accent-red)">● Failed</span>
+                <span style="font-size:.62rem;color:var(--accent-green)">● Success</span>
+                <select id="timeline-hours" onchange="loadTimeline()" style="background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);padding:3px 6px;border-radius:4px;font-size:.65rem;font-family:var(--font-mono)">
+                  <option value="6">6h</option><option value="24" selected>24h</option><option value="72">72h</option>
+                </select>
+              </div>
+            </div>
+            <div class="panel-body" style="position:relative;height:260px">
+              <div class="chart-wrap" style="height:100%"><canvas id="timeline-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">⚡ Live Alert Feed</span>
+              <span class="panel-meta" id="alert-count-badge" style="color:var(--accent-red)">loading…</span>
+            </div>
+            <div class="panel-body no-pad scroll" style="max-height:300px">
+              <div class="alert-list" id="alert-feed"><div class="empty-state">Loading alerts…</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-grid-3">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Top Attacking IPs</span><span class="panel-meta">by failure count</span></div>
+            <div class="panel-body no-pad scroll" style="max-height:260px"><div id="top-ips-list"><div class="empty-state">Loading…</div></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Attack Patterns</span><span class="panel-meta">detection breakdown</span></div>
+            <div class="panel-body" style="height:260px">
+              <div class="chart-wrap" style="height:200px"><canvas id="pattern-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Attack Heatmap</span><span class="panel-meta">failures by hour (7d)</span></div>
+            <div class="panel-body no-pad">
+              <div class="heat-hours" id="heat-hours"></div>
+              <div id="heatmap-grid" style="margin-top:4px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Geographic Attack Origins</span><span class="panel-meta">attacks by country</span></div>
+            <div class="panel-body" style="height:260px"><div class="chart-wrap" style="height:230px"><canvas id="geo-chart"></canvas></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Severity Distribution</span><span class="panel-meta">24h alert breakdown</span></div>
+            <div class="panel-body" style="height:260px;display:flex;align-items:center;justify-content:center">
+              <div class="chart-wrap" style="height:220px;width:220px"><canvas id="severity-chart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: LIVE ALERTS ═══════════════ -->
+      <div class="section" id="sec-alerts">
+        <div class="page-header">
+          <h2>⚡ Live Alerts</h2>
+          <p>Real-time security alert log — all detection events sorted by most recent</p>
+        </div>
+        <div class="filter-bar">
+          <select class="filter-select" id="filter-sev" onchange="loadAlertsPage()">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select class="filter-select" id="filter-ack" onchange="loadAlertsPage()">
+            <option value="false">Unacknowledged</option>
+            <option value="">All Alerts</option>
+            <option value="true">Acknowledged</option>
+          </select>
+          <button class="btn btn-ghost" onclick="loadAlertsPage()">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="exportAlerts()">⬇ Export CSV</button>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Alert Log</span>
+            <span class="panel-meta" id="alerts-page-meta">—</span>
+          </div>
+          <div class="panel-body no-pad" id="alerts-page-body"><div class="empty-state">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: THREAT MAP ═══════════════ -->
+      <div class="section" id="sec-threatmap">
+        <div class="page-header">
+          <h2>🌐 Threat Map</h2>
+          <p>Geographic distribution of attack origins based on GeoIP enrichment</p>
+        </div>
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header"><span class="panel-title">Attacks by Country (24h)</span></div>
+          <div class="panel-body" style="height:360px"><div class="chart-wrap" style="height:330px"><canvas id="geo-chart-full"></canvas></div></div>
+        </div>
+        <div class="dash-grid">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Country Breakdown</span></div>
+            <div class="panel-body no-pad scroll" style="max-height:300px" id="geo-country-list"><div class="empty-state">Loading…</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Enriched Threat Intel</span></div>
+            <div class="panel-body no-pad scroll" style="max-height:300px" id="geo-ti-list"><div class="empty-state">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: ATTACK IPs ═══════════════ -->
+      <div class="section" id="sec-ips">
+        <div class="page-header">
+          <h2>◎ Attack IPs</h2>
+          <p>All attacking IP addresses ranked by failure volume with threat intelligence</p>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Top Attacking IPs (24h)</span>
+            <span class="panel-meta" id="ips-page-meta">—</span>
+          </div>
+          <div class="panel-body no-pad" id="ips-page-body"><div class="empty-state">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: PATTERNS ═══════════════ -->
+      <div class="section" id="sec-patterns">
+        <div class="page-header">
+          <h2>◈ Attack Patterns</h2>
+          <p>Detection breakdown by attack type and severity</p>
+        </div>
+        <div class="stat-grid" id="pattern-stats"></div>
+        <div class="dash-grid">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Pattern Distribution</span></div>
+            <div class="panel-body" style="height:320px;display:flex;align-items:center;justify-content:center">
+              <div class="chart-wrap" style="height:290px;width:290px"><canvas id="pattern-chart-full"></canvas></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Severity Distribution</span></div>
+            <div class="panel-body" style="height:320px;display:flex;align-items:center;justify-content:center">
+              <div class="chart-wrap" style="height:290px;width:290px"><canvas id="severity-chart-full"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><span class="panel-title">Pattern Bars</span></div>
+          <div class="panel-body" id="pattern-bars-full"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: TIMELINE ═══════════════ -->
+      <div class="section" id="sec-timeline">
+        <div class="page-header">
+          <h2>⋯ Login Timeline</h2>
+          <p>Time-series analysis of all login activity with configurable window</p>
+        </div>
+        <div class="panel scanner-wrap" style="margin-bottom:16px">
+          <div class="scanner-line"></div>
+          <div class="panel-header">
+            <span class="panel-title">Login Activity</span>
+            <div style="display:flex;gap:12px;align-items:center">
+              <span style="font-size:.62rem;color:var(--accent-red)">● Failed</span>
+              <span style="font-size:.62rem;color:var(--accent-green)">● Success</span>
+              <select id="timeline-hours-full" onchange="loadTimelineFull()" style="background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);padding:3px 6px;border-radius:4px;font-size:.65rem;font-family:var(--font-mono)">
+                <option value="6">Last 6h</option><option value="24" selected>Last 24h</option><option value="72">Last 72h</option><option value="168">Last 7d</option>
+              </select>
+            </div>
+          </div>
+          <div class="panel-body" style="height:340px"><div class="chart-wrap" style="height:310px"><canvas id="timeline-chart-full"></canvas></div></div>
+        </div>
+        <div class="dash-grid-3">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Attack Heatmap (7d)</span></div>
+            <div class="panel-body no-pad">
+              <div class="heat-hours" id="heat-hours-full"></div>
+              <div id="heatmap-grid-full" style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;padding:4px 18px 14px"></div>
+            </div>
+          </div>
+          <div class="panel" style="grid-column:span 2">
+            <div class="panel-header"><span class="panel-title">Peak Attack Hours</span></div>
+            <div class="panel-body" style="height:180px"><div class="chart-wrap" style="height:150px"><canvas id="hourly-bar-chart"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: BLOCKED IPs ═══════════════ -->
+      <div class="section" id="sec-blocked">
+        <div class="page-header">
+          <h2>⊗ Blocked IPs</h2>
+          <p>Active firewall block rules — managed automatically by BruteGuard response engine</p>
+        </div>
+        <div class="filter-bar">
+          <button class="btn btn-ghost" onclick="loadBlockedPage()">↻ Refresh</button>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Active Blocks</span>
+            <span class="panel-meta" id="blocked-page-meta">—</span>
+          </div>
+          <div class="panel-body no-pad" id="blocked-page-body"><div class="empty-state">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: REPORTS ═══════════════ -->
+      <div class="section" id="sec-reports">
+        <div class="page-header">
+          <h2>↯ Reports</h2>
+          <p>Generate and export incident reports for audit, compliance, and SIEM ingestion</p>
+        </div>
+        <div class="dash-grid-3">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">PDF Incident Report</span></div>
+            <div class="panel-body">
+              <p style="font-size:.72rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">Full executive summary with KPI table, top attacking IPs, and critical alert list — formatted for management review.</p>
+              <div style="margin-bottom:14px">
+                <div style="font-size:.6rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase">Time Window</div>
+                <select id="report-window" style="width:100%;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);padding:7px 10px;border-radius:var(--radius-sm);font-size:.72rem;font-family:var(--font-mono)">
+                  <option value="24">Last 24 hours</option>
+                  <option value="72">Last 72 hours</option>
+                  <option value="168">Last 7 days</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="generateReport()">📄 Generate PDF</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">CSV Data Export</span></div>
+            <div class="panel-body">
+              <p style="font-size:.72rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">Export all alerts as a raw CSV file. Suitable for SIEM ingestion, Excel analysis, or archival.</p>
+              <button class="btn btn-ghost" style="width:100%" onclick="exportAlerts()">⬇ Download CSV</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">JSON Export</span></div>
+            <div class="panel-body">
+              <p style="font-size:.72rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">Structured JSON incident data for SOAR platform integrations and REST API consumers.</p>
+              <button class="btn btn-ghost" style="width:100%" onclick="generateJsonReport()">{ } Export JSON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: ML DETECTOR ═══════════════ -->
+      <div class="section" id="sec-ml">
+        <div class="page-header">
+          <h2>⊕ ML Detector</h2>
+          <p>Isolation Forest anomaly detection engine — status, training, and configuration</p>
+        </div>
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header"><span class="panel-title">Model Status</span><button class="btn btn-ghost" style="font-size:.65rem;padding:4px 10px" onclick="loadMLStatus()">↻ Refresh</button></div>
+          <div class="panel-body" id="ml-status-body"><div class="empty-state">Loading…</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Retrain Model</span></div>
+          <div class="panel-body">
+            <p style="font-size:.72rem;color:var(--text-secondary);line-height:1.8;margin-bottom:16px">
+              Retrains the Isolation Forest on recent login event data. The model learns 8 engineered features per IP including failure rate, username entropy, inter-arrival time, and burstiness score.
+            </p>
+            <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+              <div>
+                <div style="font-size:.6rem;color:var(--text-muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase">Training Window</div>
+                <select id="retrain-hours" style="background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);padding:7px 10px;border-radius:var(--radius-sm);font-size:.72rem;font-family:var(--font-mono)">
+                  <option value="72">72 hours</option>
+                  <option value="168" selected>7 days</option>
+                  <option value="336">14 days</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="triggerRetrain()">⊕ Retrain Now</button>
+            </div>
+            <div id="retrain-result" style="margin-top:16px"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<div id="toast-container"></div>
+
+<script>
+"use strict";
+
+const API = "/api/v1";
+const REFRESH_MS = 20000;
+let currentSection = "overview";
+
+// Chart instances
+let timelineChart, patternChart, severityChart, geoChart;
+let timelineChartFull, patternChartFull, severityChartFull, geoChartFull, hourlyBarChart;
+
+Chart.defaults.color = "#8892aa";
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 10;
+
+// ── Clock ─────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById("clock").textContent =
+    new Date().toISOString().replace("T"," ").slice(0,19) + " UTC";
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function showToast(msg, sev, duration) {
+  sev = sev || "info"; duration = duration || 5000;
+  const el = document.createElement("div");
+  el.className = "toast " + sev;
+  const color = sev==="critical" ? "var(--accent-red)" : sev==="high" ? "var(--accent-orange)" : "var(--accent-cyan)";
+  el.innerHTML = '<span style="color:' + color + ';font-weight:700">' + sev.toUpperCase() + '</span> — ' + msg;
+  document.getElementById("toast-container").appendChild(el);
+  setTimeout(function(){ el.remove(); }, duration);
+}
+
+// ── API fetch (includes session cookie) ───────────────────────────────
+async function apiFetch(path) {
+  try {
+    const r = await fetch(API + path, { credentials: "include" });
+    if (r.status === 401 || r.status === 302) {
+      showToast("Session expired — please log in again", "high", 4000);
+      return null;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch(e) {
+    console.error("API error:", path, e);
+    return null;
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────
+const SECTION_TITLES = {
+  overview: "Security Operations Center",
+  alerts:   "Live Alerts",
+  threatmap:"Threat Map",
+  ips:      "Attack IPs",
+  patterns: "Attack Patterns",
+  timeline: "Login Timeline",
+  blocked:  "Blocked IPs",
+  reports:  "Reports",
+  ml:       "ML Detector"
+};
+
+document.querySelectorAll(".nav-item[data-section]").forEach(function(item) {
+  item.addEventListener("click", function() {
+    navigateTo(item.getAttribute("data-section"));
+  });
+});
+
+function navigateTo(sec) {
+  // Hide all sections
+  document.querySelectorAll(".section").forEach(function(s){ s.classList.remove("active"); });
+  // Deactivate all nav items
+  document.querySelectorAll(".nav-item").forEach(function(n){ n.classList.remove("active"); });
+
+  // Show target
+  const secEl = document.getElementById("sec-" + sec);
+  if (secEl) secEl.classList.add("active");
+
+  // Highlight nav item
+  const navEl = document.querySelector('.nav-item[data-section="' + sec + '"]');
+  if (navEl) navEl.classList.add("active");
+
+  // Update topbar title
+  document.getElementById("topbar-title").textContent = SECTION_TITLES[sec] || "BruteGuard";
+
+  currentSection = sec;
+  loadSectionData(sec);
+}
+
+function loadSectionData(sec) {
+  if (sec === "overview")  { loadTimeline(); loadAlerts(); loadTopIPs(); loadPatternChart(); loadSeverityChart(); loadGeoChart(); loadHeatmap(); }
+  if (sec === "alerts")    { loadAlertsPage(); }
+  if (sec === "threatmap") { loadThreatMap(); }
+  if (sec === "ips")       { loadIPsPage(); }
+  if (sec === "patterns")  { loadPatternsPage(); }
+  if (sec === "timeline")  { loadTimelineFull(); loadHeatmapFull(); loadHourlyBarChart(); }
+  if (sec === "blocked")   { loadBlockedPage(); }
+  if (sec === "ml")        { loadMLStatus(); }
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────
+async function loadKPIs() {
+  const d = await apiFetch("/summary");
+  if (!d) return;
+  document.getElementById("kpi-total").textContent     = d.total_events.toLocaleString();
+  document.getElementById("kpi-failures").textContent  = d.total_failures.toLocaleString();
+  document.getElementById("kpi-successes").textContent = d.total_successes.toLocaleString();
+  document.getElementById("kpi-ips").textContent       = d.unique_attack_ips.toLocaleString();
+  document.getElementById("kpi-alerts").textContent    = d.open_alerts.toLocaleString();
+  document.getElementById("kpi-blocked").textContent   = d.blocked_ips.toLocaleString();
+  document.getElementById("last-sync").textContent     = new Date().toLocaleTimeString();
+
+  const badge = document.getElementById("threat-level-badge");
+  const c = d.critical_alerts || 0;
+  if      (c >= 5)              { badge.className="threat-level critical"; badge.textContent="⬤ THREAT LEVEL: CRITICAL"; }
+  else if (c >= 2)              { badge.className="threat-level high";     badge.textContent="⬤ THREAT LEVEL: HIGH"; }
+  else if (d.open_alerts >= 5)  { badge.className="threat-level medium";   badge.textContent="⬤ THREAT LEVEL: ELEVATED"; }
+  else                          { badge.className="threat-level normal";   badge.textContent="⬤ THREAT LEVEL: NORMAL"; }
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────
+function buildTimelineChart(canvasId, data, existing) {
+  if (existing) existing.destroy();
+  return new Chart(document.getElementById(canvasId), {
+    type: "line",
+    data: {
+      labels: data.map(function(d){ return d.timestamp.slice(11,16); }),
+      datasets: [
+        { label:"Failures",  data: data.map(function(d){ return d.failures; }),
+          borderColor:"#ff3b3b", backgroundColor:"rgba(255,59,59,0.08)", borderWidth:2, pointRadius:0, tension:0.4, fill:true },
+        { label:"Successes", data: data.map(function(d){ return d.successes; }),
+          borderColor:"#00e676", backgroundColor:"rgba(0,230,118,0.05)", borderWidth:1.5, pointRadius:0, tension:0.4, fill:true }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{backgroundColor:"#141929",borderColor:"#30363d",borderWidth:1} },
+      scales:{
+        x:{grid:{color:"rgba(255,255,255,0.04)"},ticks:{maxTicksLimit:12}},
+        y:{grid:{color:"rgba(255,255,255,0.04)"},beginAtZero:true}
+      }
+    }
+  });
+}
+
+async function loadTimeline() {
+  const hours = document.getElementById("timeline-hours").value;
+  const data  = await apiFetch("/events/timeseries?hours=" + hours + "&bucket_minutes=15");
+  if (data) timelineChart = buildTimelineChart("timeline-chart", data, timelineChart);
+}
+
+async function loadTimelineFull() {
+  const hours = document.getElementById("timeline-hours-full").value;
+  const data  = await apiFetch("/events/timeseries?hours=" + hours + "&bucket_minutes=30");
+  if (data) timelineChartFull = buildTimelineChart("timeline-chart-full", data, timelineChartFull);
+}
+
+// ── Alerts (overview panel) ───────────────────────────────────────────
+const ICONS = { brute_force:"⚡", password_spray:"🌊", credential_stuffing:"💉", anomaly:"◎", ml_detected:"🧠", account_lockout:"🔒" };
+
+function buildAlertHTML(a, ackCallback) {
+  ackCallback = ackCallback || "overview";
+  return '<div class="alert-item" id="alert-' + a.id + '">' +
+    '<span class="sev-badge ' + a.severity + '">' + a.severity + '</span>' +
+    '<div class="alert-content">' +
+      '<div class="alert-headline">' + (ICONS[a.pattern]||"⚠") + " " + a.pattern.replace(/_/g," ") + " — " + (a.source_ip||"Multiple IPs") + '</div>' +
+      '<div class="alert-meta">User: ' + (a.username||"Various") + ' · Attempts: ' + (a.attempt_count||"?") + ' · Rule: ' + (a.rule_name||"—") + '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+      '<span class="alert-time">' + (a.created_at ? a.created_at.slice(11,19) : "") + '</span>' +
+      (!a.acknowledged ? '<button class="ack-btn" onclick="ackAlert(' + a.id + ',\'' + ackCallback + '\')">✓ ACK</button>' :
+        '<span style="font-size:.6rem;color:var(--accent-green)">✓ acked</span>') +
+    '</div></div>';
+}
+
+async function loadAlerts() {
+  const alerts = await apiFetch("/alerts?limit=30&acknowledged=false");
+  const feed   = document.getElementById("alert-feed");
+  const badge  = document.getElementById("alert-count-badge");
+  if (!alerts) {
+    feed.innerHTML = '<div class="empty-state">Failed to load alerts. Check server logs.</div>';
+    return;
+  }
+  badge.textContent = alerts.length + " unacknowledged";
+  feed.innerHTML = alerts.length
+    ? alerts.slice(0,20).map(function(a){ return buildAlertHTML(a,"overview"); }).join("")
+    : '<div class="empty-state">✓ No unacknowledged alerts</div>';
+}
+
+async function loadAlertsPage() {
+  const sev   = document.getElementById("filter-sev").value;
+  const acked = document.getElementById("filter-ack").value;
+  let url = "/alerts?limit=300";
+  if (sev)   url += "&severity=" + sev;
+  if (acked) url += "&acknowledged=" + acked;
+
+  const alerts = await apiFetch(url);
+  const body   = document.getElementById("alerts-page-body");
+  const meta   = document.getElementById("alerts-page-meta");
+  if (!alerts) { body.innerHTML='<div class="empty-state">Failed to load</div>'; return; }
+  meta.textContent = alerts.length + " alerts";
+  body.innerHTML = alerts.length
+    ? alerts.map(function(a){ return buildAlertHTML(a,"page"); }).join("")
+    : '<div class="empty-state">No alerts match this filter</div>';
+}
+
+async function ackAlert(id, ctx) {
+  const r = await fetch(API + "/alerts/" + id + "/acknowledge", { method:"POST", credentials:"include" });
+  if (r.ok) {
+    const el = document.getElementById("alert-" + id);
+    if (el) { el.style.opacity="0.3"; el.style.pointerEvents="none"; }
+    showToast("Alert #" + id + " acknowledged", "info", 3000);
+    await loadKPIs();
+    if (ctx === "overview") loadAlerts();
+    else loadAlertsPage();
+  }
+}
+
+// ── Top IPs ───────────────────────────────────────────────────────────
+function buildIPRow(ip, maxCount) {
+  const pct = Math.round((ip.count / maxCount) * 100);
+  const absCls = (ip.abuse_score||0) > 70 ? "abuse-high" : (ip.abuse_score||0) > 30 ? "abuse-med" :
+                  ip.abuse_score !== null && ip.abuse_score !== undefined ? "abuse-low" : "abuse-na";
+  const scoreLabel = (ip.abuse_score !== null && ip.abuse_score !== undefined) ? "ABI:" + ip.abuse_score : "N/A";
+  return '<div class="ip-row">' +
+    '<div>' +
+      '<div class="ip-addr">' + ip.ip + '</div>' +
+      '<div class="ip-country">' + (ip.country||"Unknown") + '</div>' +
+      '<div style="height:3px;background:var(--bg-elevated);border-radius:2px;margin-top:4px;width:120px">' +
+        '<div style="height:100%;width:' + pct + '%;background:var(--accent-red);border-radius:2px;opacity:.7"></div>' +
+      '</div>' +
+    '</div>' +
+    '<span class="abuse-score ' + absCls + '">' + scoreLabel + '</span>' +
+    '<span class="ip-count">' + ip.count.toLocaleString() + '</span>' +
+    '</div>';
+}
+
+async function loadTopIPs() {
+  const ips = await apiFetch("/events/top-ips?hours=24&limit=8");
+  const el  = document.getElementById("top-ips-list");
+  if (!ips || !ips.length) { el.innerHTML='<div class="empty-state">No attacking IPs in last 24h</div>'; return; }
+  const max = ips[0].count;
+  el.innerHTML = ips.map(function(ip){ return buildIPRow(ip, max); }).join("");
+}
+
+async function loadIPsPage() {
+  const ips  = await apiFetch("/events/top-ips?hours=24&limit=50");
+  const body = document.getElementById("ips-page-body");
+  const meta = document.getElementById("ips-page-meta");
+  if (!ips) { body.innerHTML='<div class="empty-state">Failed to load</div>'; return; }
+  meta.textContent = ips.length + " IPs";
+  const max = ips[0] ? ips[0].count : 1;
+  body.innerHTML = ips.length
+    ? ips.map(function(ip){ return buildIPRow(ip, max); }).join("")
+    : '<div class="empty-state">No attacking IPs found</div>';
+}
+
+// ── Pattern chart ─────────────────────────────────────────────────────
+const PAT_COLORS = ["#ff3b3b","#ff8c00","#ffd60a","#00e676","#2979ff","#bf40ff"];
+const SEV_COLORS = { critical:"#ff3b3b", high:"#ff8c00", medium:"#ffd60a", low:"#00e676" };
+
+async function loadPatternChart() {
+  const alerts = await apiFetch("/alerts?limit=500");
+  if (!alerts || !alerts.length) return;
+
+  const counts = {};
+  alerts.forEach(function(a){ counts[a.pattern] = (counts[a.pattern]||0) + 1; });
+  const labels = Object.keys(counts).map(function(k){ return k.replace(/_/g," ").replace(/\b\w/g,function(c){ return c.toUpperCase(); }); });
+  const values = Object.values(counts);
+
+  if (patternChart) patternChart.destroy();
+  patternChart = new Chart(document.getElementById("pattern-chart"), {
+    type: "doughnut",
+    data: { labels: labels, datasets:[{ data:values, backgroundColor:PAT_COLORS.slice(0,labels.length), borderWidth:0, hoverOffset:4 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:"70%",
+      plugins:{ legend:{ position:"right", labels:{ boxWidth:10, padding:10 } } } }
+  });
+}
+
+async function loadSeverityChart() {
+  const alerts = await apiFetch("/alerts?limit=500");
+  if (!alerts || !alerts.length) return;
+
+  const counts = {};
+  alerts.forEach(function(a){ counts[a.severity] = (counts[a.severity]||0) + 1; });
+  const order  = ["critical","high","medium","low"];
+  const labels = order.filter(function(s){ return counts[s]; });
+  const values = labels.map(function(s){ return counts[s]; });
+  const colors = labels.map(function(s){ return SEV_COLORS[s]; });
+
+  if (severityChart) severityChart.destroy();
+  severityChart = new Chart(document.getElementById("severity-chart"), {
+    type: "doughnut",
+    data: { labels: labels.map(function(l){ return l.charAt(0).toUpperCase()+l.slice(1); }),
+            datasets:[{ data:values, backgroundColor:colors, borderWidth:0, hoverOffset:5 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:"68%",
+      plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, padding:12 } } } }
+  });
+}
+
+// ── Patterns page ─────────────────────────────────────────────────────
+async function loadPatternsPage() {
+  const alerts = await apiFetch("/alerts?limit=1000");
+  if (!alerts) return;
+
+  const patCounts = {}, sevCounts = {};
+  alerts.forEach(function(a){
+    patCounts[a.pattern]  = (patCounts[a.pattern]||0) + 1;
+    sevCounts[a.severity] = (sevCounts[a.severity]||0) + 1;
+  });
+  const total = alerts.length || 1;
+
+  // Stats
+  const stats = [
+    { label:"Total Alerts",   val: total,                    color: "var(--accent-cyan)" },
+    { label:"Critical",       val: sevCounts.critical||0,    color: "var(--accent-red)" },
+    { label:"High",           val: sevCounts.high||0,        color: "var(--accent-orange)" },
+    { label:"Medium",         val: sevCounts.medium||0,      color: "var(--accent-yellow)" },
+    { label:"Low",            val: sevCounts.low||0,         color: "var(--accent-green)" },
+    { label:"Unacknowledged", val: alerts.filter(function(a){ return !a.acknowledged; }).length, color:"var(--accent-purple)" }
+  ];
+  document.getElementById("pattern-stats").innerHTML = stats.map(function(s){
+    return '<div class="stat-card">' +
+      '<div class="stat-card-label">' + s.label + '</div>' +
+      '<div class="stat-card-value" style="color:' + s.color + '">' + s.val.toLocaleString() + '</div>' +
+      '</div>';
+  }).join("");
+
+  // Full pattern donut
+  const pLabels = Object.keys(patCounts).map(function(k){ return k.replace(/_/g," ").replace(/\b\w/g,function(c){ return c.toUpperCase(); }); });
+  const pVals   = Object.values(patCounts);
+  if (patternChartFull) patternChartFull.destroy();
+  patternChartFull = new Chart(document.getElementById("pattern-chart-full"), {
+    type:"doughnut",
+    data:{ labels:pLabels, datasets:[{ data:pVals, backgroundColor:PAT_COLORS.slice(0,pLabels.length), borderWidth:0, hoverOffset:5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, padding:12 } } } }
+  });
+
+  // Full severity donut
+  const sOrder  = ["critical","high","medium","low"];
+  const sLabels = sOrder.filter(function(s){ return sevCounts[s]; });
+  if (severityChartFull) severityChartFull.destroy();
+  severityChartFull = new Chart(document.getElementById("severity-chart-full"), {
+    type:"doughnut",
+    data:{ labels:sLabels.map(function(s){ return s.charAt(0).toUpperCase()+s.slice(1); }),
+           datasets:[{ data:sLabels.map(function(s){ return sevCounts[s]; }), backgroundColor:sLabels.map(function(s){ return SEV_COLORS[s]; }), borderWidth:0, hoverOffset:5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, padding:12 } } } }
+  });
+
+  // Bars
+  const maxPat = Math.max.apply(null, pVals.concat([1]));
+  document.getElementById("pattern-bars-full").innerHTML = Object.entries(patCounts).map(function(entry, i){
+    const k = entry[0], v = entry[1];
+    return '<div style="margin-bottom:14px">' +
+      '<div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:5px">' +
+        '<span style="color:var(--text-secondary)">' + k.replace(/_/g," ").replace(/\b\w/g,function(c){ return c.toUpperCase(); }) + '</span>' +
+        '<span style="color:var(--text-muted)">' + v + ' (' + Math.round(v/total*100) + '%)</span>' +
+      '</div>' +
+      '<div style="height:5px;background:var(--bg-elevated);border-radius:3px">' +
+        '<div style="height:100%;width:' + Math.round(v/maxPat*100) + '%;background:' + PAT_COLORS[i%PAT_COLORS.length] + ';border-radius:3px;transition:width .6s"></div>' +
+      '</div></div>';
+  }).join("");
+}
+
+// ── Geo chart ─────────────────────────────────────────────────────────
+async function buildGeoChart(canvasId, existing) {
+  const geo = await apiFetch("/events/geo?hours=24");
+  if (!geo || !geo.length) return existing;
+  const byCountry = {};
+  geo.forEach(function(g){
+    const k = g.country_name || g.country_code || "Unknown";
+    byCountry[k] = (byCountry[k]||0) + g.attack_count;
+  });
+  const sorted = Object.entries(byCountry).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
+  if (existing) existing.destroy();
+  return new Chart(document.getElementById(canvasId), {
+    type:"bar",
+    data:{ labels: sorted.map(function(e){ return e[0]; }),
+           datasets:[{ label:"Attacks", data:sorted.map(function(e){ return e[1]; }),
+             backgroundColor:sorted.map(function(_,i){ return "hsla("+(350-i*15)+",80%,55%,0.7)"; }),
+             borderWidth:0, borderRadius:4 }] },
+    options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{grid:{color:"rgba(255,255,255,0.04)"}}, y:{grid:{display:false}} } }
+  });
+}
+
+async function loadGeoChart()     { geoChart     = await buildGeoChart("geo-chart",      geoChart); }
+async function loadThreatGeoFull(){ geoChartFull = await buildGeoChart("geo-chart-full", geoChartFull); }
+
+async function loadThreatMap() {
+  await loadThreatGeoFull();
+  const ips = await apiFetch("/events/top-ips?hours=24&limit=20");
+  if (!ips) return;
+
+  const byCountry = {};
+  ips.forEach(function(ip){ const c=ip.country||"Unknown"; byCountry[c]=(byCountry[c]||0)+ip.count; });
+  const sorted = Object.entries(byCountry).sort(function(a,b){ return b[1]-a[1]; });
+  const maxC = sorted[0] ? sorted[0][1] : 1;
+
+  document.getElementById("geo-country-list").innerHTML = sorted.map(function(e){
+    return '<div class="ip-row"><div><div class="ip-addr" style="color:var(--text-primary)">' + e[0] + '</div>' +
+      '<div style="height:2px;background:var(--bg-elevated);border-radius:1px;margin-top:4px;width:120px">' +
+        '<div style="height:100%;width:' + Math.round(e[1]/maxC*100) + '%;background:var(--accent-orange);border-radius:1px;opacity:.7"></div>' +
+      '</div></div><span class="ip-count">' + e[1].toLocaleString() + '</span></div>';
+  }).join("");
+
+  document.getElementById("geo-ti-list").innerHTML = ips.slice(0,10).map(function(ip){
+    const absCls = (ip.abuse_score||0)>50 ? "abuse-high" : (ip.abuse_score||0)>20 ? "abuse-med" : "abuse-na";
+    const score  = (ip.abuse_score !== null && ip.abuse_score !== undefined) ? ip.abuse_score+"/100" : "N/A";
+    return '<div class="ip-row"><div><div class="ip-addr">' + ip.ip + '</div>' +
+      '<div class="ip-country">' + (ip.country||"Unknown") + (ip.is_known_bad?" ⚠ KNOWN BAD":"") + '</div></div>' +
+      '<span class="abuse-score ' + absCls + '">' + score + '</span></div>';
+  }).join("");
+}
+
+// ── Heatmap ───────────────────────────────────────────────────────────
+async function buildHeatmap(hoursId, gridId) {
+  const data = await apiFetch("/events/timeseries?hours=168&bucket_minutes=60");
+  if (!data) return;
+  const buckets = new Array(24).fill(0);
+  data.forEach(function(d){
+    const h = parseInt(d.timestamp.slice(11,13), 10);
+    buckets[h] = (buckets[h]||0) + d.failures;
+  });
+  const maxVal = Math.max.apply(null, buckets.concat([1]));
+
+  document.getElementById(hoursId).innerHTML = Array.from({length:24}, function(_,i){
+    return '<div class="heat-hour-label">' + String(i).padStart(2,"0") + '</div>';
+  }).join("");
+
+  document.getElementById(gridId).innerHTML = buckets.map(function(v){
+    const intensity = v / maxVal;
+    const alpha     = Math.max(0.05, intensity * 0.9);
+    const lightness = 40 + intensity * 30;
+    return '<div class="heat-cell" title="' + v + ' failures" style="background:hsla(0,80%,' + lightness + '%,' + alpha + ')"></div>';
+  }).join("");
+}
+
+async function loadHeatmap()     { buildHeatmap("heat-hours",      "heatmap-grid"); }
+async function loadHeatmapFull() { buildHeatmap("heat-hours-full", "heatmap-grid-full"); }
+
+// ── Hourly bar chart ──────────────────────────────────────────────────
+async function loadHourlyBarChart() {
+  const data = await apiFetch("/events/timeseries?hours=168&bucket_minutes=60");
+  if (!data) return;
+  const buckets = new Array(24).fill(0);
+  data.forEach(function(d){
+    const h = parseInt(d.timestamp.slice(11,13), 10);
+    buckets[h] = (buckets[h]||0) + d.failures;
+  });
+  const avg = buckets.reduce(function(a,b){ return a+b; }, 0) / 24;
+  if (hourlyBarChart) hourlyBarChart.destroy();
+  hourlyBarChart = new Chart(document.getElementById("hourly-bar-chart"), {
+    type:"bar",
+    data:{
+      labels: Array.from({length:24}, function(_,i){ return String(i).padStart(2,"0")+":00"; }),
+      datasets:[{ label:"Failures", data:buckets,
+        backgroundColor: buckets.map(function(v){ return v > avg*1.5 ? "rgba(255,59,59,0.75)" : "rgba(255,140,0,0.45)"; }),
+        borderWidth:0, borderRadius:3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false}, ticks:{maxTicksLimit:12}},
+        y:{grid:{color:"rgba(255,255,255,0.04)"}}
+      }
+    }
+  });
+}
+
+// ── Blocked IPs page ──────────────────────────────────────────────────
+async function loadBlockedPage() {
+  const data = await apiFetch("/blocked-ips");
+  const body = document.getElementById("blocked-page-body");
+  const meta = document.getElementById("blocked-page-meta");
+  if (!data) { body.innerHTML='<div class="empty-state">Failed to load</div>'; return; }
+  meta.textContent = data.length + " active";
+  if (!data.length) { body.innerHTML='<div class="empty-state">No IPs currently blocked</div>'; return; }
+  body.innerHTML = '<table class="data-table"><thead><tr>' +
+    '<th>IP Address</th><th>Blocked At</th><th>Expires</th><th>Reason</th><th>Blocked By</th>' +
+    '</tr></thead><tbody>' +
+    data.map(function(b){
+      return '<tr>' +
+        '<td style="color:var(--accent-cyan);font-weight:600">' + b.ip + '</td>' +
+        '<td>' + (b.blocked_at ? b.blocked_at.slice(0,19).replace("T"," ") : "—") + '</td>' +
+        '<td>' + (b.expires_at ? b.expires_at.slice(0,19).replace("T"," ") : "Never") + '</td>' +
+        '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (b.reason||"—") + '</td>' +
+        '<td>' + (b.blocked_by||"system") + '</td>' +
+        '</tr>';
+    }).join("") +
+    '</tbody></table>';
+}
+
+// ── ML Status ─────────────────────────────────────────────────────────
+async function loadMLStatus() {
+  const d  = await apiFetch("/ml/status");
+  const el = document.getElementById("ml-status-body");
+  if (!d) { el.innerHTML='<div class="empty-state">Failed to load ML status</div>'; return; }
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">' +
+    '<div class="stat-card">' +
+      '<div class="stat-card-label">Status</div>' +
+      '<div class="stat-card-value" style="color:' + (d.enabled?"var(--accent-green)":"var(--accent-red)") + '">' + (d.enabled?"ENABLED":"DISABLED") + '</div>' +
+    '</div>' +
+    '<div class="stat-card">' +
+      '<div class="stat-card-label">Model</div>' +
+      '<div class="stat-card-value" style="color:' + (d.is_trained?"var(--accent-green)":"var(--accent-yellow)") + '">' + (d.is_trained?"TRAINED":"NOT TRAINED") + '</div>' +
+    '</div>' +
+    '<div class="stat-card">' +
+      '<div class="stat-card-label">Model Path</div>' +
+      '<div style="font-size:.65rem;color:var(--text-secondary);margin-top:6px;word-break:break-all">' + (d.model_path||"—") + '</div>' +
+    '</div>' +
+    '</div>';
+}
+
+async function triggerRetrain() {
+  const hours     = document.getElementById("retrain-hours").value;
+  const resultEl  = document.getElementById("retrain-result");
+  resultEl.innerHTML = '<div style="color:var(--text-secondary);font-size:.72rem">⏳ Retraining model… this may take 30–60 seconds</div>';
+  const r = await fetch(API + "/ml/retrain", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    credentials:"include", body:JSON.stringify({hours:parseInt(hours)})
+  });
+  const d  = await r.json();
+  const ok = d.status === "trained";
+  resultEl.innerHTML =
+    '<div style="background:' + (ok?"rgba(0,230,118,0.08)":"rgba(255,140,0,0.08)") + ';border:1px solid ' + (ok?"rgba(0,230,118,0.3)":"rgba(255,140,0,0.3)") + ';border-radius:var(--radius-md);padding:12px 16px;font-size:.72rem">' +
+    '<span style="color:' + (ok?"var(--accent-green)":"var(--accent-yellow)") + ';font-weight:700">' + (ok?"✓ TRAINED":"⚠ "+d.status.toUpperCase()) + '</span>' +
+    (ok ? " — " + (d.samples||0).toLocaleString() + " samples, " + Math.round((d.anomaly_rate||0)*100) + "% anomaly rate" : " — " + (d.reason||"")) +
+    '</div>';
+  showToast("ML retrain: " + d.status, ok?"info":"high", 5000);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────
+async function generateReport() {
+  const hours = (document.getElementById("report-window") || {}).value || 24;
+  showToast("Generating PDF report…", "info", 3000);
+  try {
+    const r = await fetch(API + "/reports/generate", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      credentials:"include", body:JSON.stringify({hours:parseInt(hours), format:"pdf"})
+    });
+    const d = await r.json();
+    showToast("Report saved: " + d.path, "info", 6000);
+  } catch(e) { showToast("Report generation failed", "high", 4000); }
+}
+
+async function generateJsonReport() {
+  showToast("Generating JSON export…", "info", 3000);
+  try {
+    const r = await fetch(API + "/reports/generate", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      credentials:"include", body:JSON.stringify({hours:24, format:"json"})
+    });
+    const d = await r.json();
+    showToast("JSON saved: " + d.path, "info", 6000);
+  } catch(e) { showToast("Export failed", "high", 4000); }
+}
+
+function exportAlerts() { window.open(API + "/alerts/export/csv", "_blank"); }
+
+// ── WebSocket (real-time alerts) ──────────────────────────────────────
+function initSocket() {
+  try {
+    const socket = io({ transports:["polling","websocket"] });
+    socket.on("connect", function(){ console.log("WebSocket connected"); });
+    socket.on("new_alert", function(alert){
+      showToast(
+        (alert.severity||"ALERT").toUpperCase() + ": " + (alert.pattern||"attack").replace(/_/g," ") + " from " + (alert.source_ip||"?"),
+        alert.severity, 6000
+      );
+      loadKPIs();
+      if (currentSection === "overview") loadAlerts();
+      if (currentSection === "alerts")   loadAlertsPage();
+    });
+    socket.emit("subscribe_alerts");
+  } catch(e) { console.log("WebSocket not available:", e); }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────
+async function init() {
+  await loadKPIs();
+  loadSectionData("overview");
+  initSocket();
+}
+
+init();
+setInterval(function(){
+  loadKPIs();
+  if (currentSection === "overview") { loadAlerts(); loadTopIPs(); }
+  if (currentSection === "alerts")   { loadAlertsPage(); }
+}, REFRESH_MS);
+setInterval(function(){
+  if (currentSection === "overview") loadTimeline();
+  if (currentSection === "timeline") loadTimelineFull();
+}, 60000);
+</script>
+</body>
+</html>

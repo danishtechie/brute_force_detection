@@ -1,0 +1,136 @@
+alerting:
+  email:
+    enabled: false
+    password: CHANGE_THIS
+    recipients:
+    - security-team@yourcompany.com
+    sender: soc-alerts@yourcompany.com
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    use_tls: true
+    username: soc-alerts@yourcompany.com
+  severity_thresholds:
+    critical: 30
+    high: 15
+    low: 1
+    medium: 5
+  slack:
+    channel: '#soc-alerts'
+    enabled: false
+    webhook_url: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+api:
+  cors_origins:
+  - http://localhost:3000
+  - http://localhost:8000
+  host: 0.0.0.0
+  jwt_expiry_hours: 8
+  port: 8000
+  rate_limit: 100/minute
+  workers: 4
+app:
+  debug: false
+  environment: production
+  name: BruteGuard SOC Platform
+  secret_key: CHANGE_THIS_TO_A_STRONG_RANDOM_SECRET_KEY_IN_PRODUCTION
+  version: 2.1.0
+collection:
+  batch_size: 500
+  event_ids:
+    account_enumeration:
+    - 4776
+    account_lockout:
+    - 4740
+    failed_login:
+    - 4625
+    kerberos_failure:
+    - 4771
+    logon_explicit_creds:
+    - 4648
+    successful_login:
+    - 4624
+  log_file_path: data/sample_logs/sample_events.evtx
+  mode: simulation
+  poll_interval_seconds: 5
+  remote_hosts: []
+database:
+  postgresql:
+    host: localhost
+    max_overflow: 20
+    name: bruteguard
+    password: CHANGE_THIS
+    pool_size: 10
+    port: 5432
+    user: bruteguard_user
+  sqlite:
+    path: data/bruteguard.db
+  type: sqlite
+detection:
+  anomaly:
+    enabled: true
+    rolling_window_minutes: 60
+    zscore_threshold: 3.0
+  ml:
+    contamination: 0.05
+    enabled: true
+    model_path: data/models/isolation_forest.pkl
+    retrain_interval_hours: 24
+  spray:
+    time_window_seconds: 300
+    unique_users_per_ip: 5
+  stuffing:
+    min_attempts: 20
+    time_window_seconds: 60
+  threshold:
+    failed_attempts_per_ip: 5
+    failed_attempts_per_user: 10
+    lockout_threshold: 3
+    time_window_seconds: 300
+reporting:
+  auto_report:
+    enabled: true
+    schedule: daily
+    time: 07:00
+  formats:
+  - pdf
+  - csv
+  - json
+  output_dir: data/reports
+response:
+  auto_block:
+    block_duration_minutes: 60
+    enabled: false
+    whitelist_ips:
+    - 127.0.0.1
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+  incident_retention_days: 90
+simulation:
+  attack_patterns:
+  - brute_force
+  - password_spray
+  - credential_stuffing
+  attack_rate: 0.4
+  events_per_second: 3
+  normal_rate: 0.6
+  num_attack_ips: 8
+  num_legitimate_users: 25
+threat_intelligence:
+  abuseipdb:
+    api_key: YOUR_ABUSEIPDB_API_KEY
+    base_url: https://api.abuseipdb.com/api/v2
+    cache_ttl_hours: 24
+    confidence_threshold: 50
+  enabled: true
+  geo_ip:
+    maxmind_db_path: data/GeoLite2-City.mmdb
+    provider: ip-api
+  virustotal:
+    api_key: YOUR_VIRUSTOTAL_API_KEY
+    enabled: false
+users:
+- password_hash: scrypt:32768:8:1$Ye0Yt0Q3wcG847Ls$49ac95a5ec7d33e6aac73b64e0aa11c4ca3064e968ab2919800c6520319613e9da683caf15af61a50dd0a3392f6f1272f91e59e44b6f57142f4bd78f83087f24
+  role: admin
+  username: admin
+- password_hash: scrypt:32768:8:1$Nrm7pZ1el05CwJ3y$5c842d326b1ae6c298b125476dbf48967c32847bc7047b4f6227f5eaf92d4485c9c4be16765fc01113b87c38f3d7566abeb6b9d76cf9430d0f638d1998818781
+  role: analyst
+  username: analyst
